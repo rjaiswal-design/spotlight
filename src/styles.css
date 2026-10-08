@@ -1,0 +1,74 @@
+@import "tailwindcss";
+@import "lightweight-ui/theme.css";
+@import "lightweight-ui/base.css";
+@source "../node_modules/lightweight-ui/dist";
+
+html, body, #root { height: 100%; }
+body { background: var(--color-bg); overflow: hidden; }
+
+/* the stage the slide sits on: a quiet dot grid */
+.sp-canvas {
+  background-color: color-mix(in oklab, var(--color-ink) 2.5%, var(--color-bg));
+  background-image: radial-gradient(color-mix(in oklab, var(--color-ink) 12%, transparent) 1px, transparent 1.2px);
+  background-size: 16px 16px;
+  background-position: 8px 8px;
+}
+.sp-scroll { scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--color-ink) 18%, transparent) transparent; }
+
+/* slide change in present mode: a short rise, transform + opacity only */
+@keyframes sp-enter-next { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+@keyframes sp-enter-prev { from { opacity: 0; transform: translateX(-24px); } to { opacity: 1; transform: none; } }
+.sp-enter-next { animation: sp-enter-next 320ms var(--ease-out) both; }
+.sp-enter-prev { animation: sp-enter-prev 320ms var(--ease-out) both; }
+
+/* staggered content inside a freshly shown slide */
+@keyframes sp-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.sp-live .sp-r { animation: sp-rise 420ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 60ms + 80ms); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sp-enter-next, .sp-enter-prev, .sp-live .sp-r { animation-name: sp-fade; }
+  @keyframes sp-fade { from { opacity: 0; } to { opacity: 1; } }
+}
+
+.sp-idle { cursor: none; }
+.sp-idle .sp-chrome { opacity: 0; }
+
+/* text edited in place on the stage */
+.sp-edit { outline: none; border-radius: 8px; cursor: text; position: relative; min-width: 1ch; box-shadow: 0 0 0 0 transparent; transition: box-shadow 120ms var(--ease-out); }
+span.sp-edit { display: inline-block; }
+@media (hover: hover) { .sp-edit:hover { box-shadow: 0 0 0 3px var(--color-wash-4); } }
+.sp-edit:focus { box-shadow: 0 0 0 3px var(--color-ink); }
+.sp-edit:empty::before { content: attr(data-placeholder); color: var(--color-muted); opacity: 0.55; pointer-events: none; }
+.sp-edit[data-editor] { box-shadow: 0 0 0 3px var(--ec); }
+.sp-edit[data-editor]::after {
+  content: attr(data-editor); position: absolute; left: -3px; bottom: 100%; margin-bottom: 3px;
+  background: var(--ec); color: #fff; font: 600 20px/1 var(--font-sans); letter-spacing: 0; text-transform: none;
+  padding: 6px 9px; border-radius: 9px 9px 9px 0; white-space: nowrap; pointer-events: none;
+}
+
+/* Reactions floating up in present mode. Each motion gets its own layer and
+   its own single curve, so nothing re-eases mid-flight:
+   .sp-fly       rise (easeOutQuad: lifts off fast, keeps drifting while it fades) + fade out at the end
+   .sp-fly-sway  gentle side drift (ease-in-out, varied per reaction)
+   .sp-fly-pop   entrance pop on a real spring (--sp-spring-pop, set from lib/spring.ts) */
+@keyframes sp-fly-rise { from { transform: translateY(0); } to { transform: translateY(-46vh); } }
+@keyframes sp-fly-vanish { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
+@keyframes sp-fly-sway-x { from { transform: translateX(0); } to { transform: translateX(var(--sway, 12px)); } }
+@keyframes sp-fly-pop-in { from { opacity: 0; transform: scale(0.6); } to { opacity: 1; transform: scale(1); } }
+.sp-fly {
+  animation:
+    sp-fly-rise var(--dur, 2600ms) cubic-bezier(0.5, 1, 0.89, 1) forwards, /* easeOutQuad, easings.net */
+    sp-fly-vanish var(--dur, 2600ms) linear forwards;
+  will-change: transform, opacity;
+}
+.sp-fly-sway { animation: sp-fly-sway-x var(--sway-dur, 1300ms) var(--ease-in-out) infinite alternate; }
+.sp-fly-pop {
+  transform-origin: 50% 100%;
+  animation: sp-fly-pop-in var(--sp-spring-pop-ms, 450ms) var(--sp-spring-pop, var(--ease-out)) both;
+}
+@media (prefers-reduced-motion: reduce) {
+  /* keep the reaction appearing and leaving, drop the travel */
+  .sp-fly { animation: sp-fly-vanish var(--dur, 2600ms) linear forwards; }
+  .sp-fly-sway { animation: none; }
+  .sp-fly-pop { animation: sp-fade 200ms ease-out both; }
+}
