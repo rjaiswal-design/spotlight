@@ -1,22 +1,74 @@
+import { useState } from 'react'
 import { Avatar, cn, timeAgo } from 'lightweight-ui'
 import { ChatCircleText, HandsClapping, Smiley } from 'lightweight-ui/icons'
 import type { Deck } from '../lib/deck'
-import { deckEngagement, reactionOrder, slideEngagement, type Engagement } from '../lib/engagement'
+import { deckEngagement, reactionOrder, reactors, slideEngagement, type Engagement } from '../lib/engagement'
 import { StickerTile } from './Chat'
 import { slideKey, type SlideRef } from './Slides'
 
-/** Reactions as a strip of equal cells, emoji over count: the same geometry as the present-mode dock. */
-function ReactionCells({ e }: { e: Engagement }) {
+/** Who sent a reaction: faces, names and how many times, with older unnamed ones summed up. */
+export function ReactorsCard({ deck, slide, emoji, className, style }: { deck: Deck; slide: string | null; emoji: string; className?: string; style?: React.CSSProperties }) {
+  const r = reactors(deck, slide, emoji)
   return (
-    <div className="grid grid-cols-6 divide-x divide-line overflow-hidden rounded-xl border border-line">
-      {reactionOrder(e.reactions)
-        .slice(0, 6)
-        .map((emoji) => (
-          <div key={emoji} className="flex flex-col items-center gap-1 py-2">
+    <div role="tooltip" style={style} className={cn('sp-tip pointer-events-none w-56 rounded-xl border border-line bg-card p-3 text-start shadow-menu', className)}>
+      <p className="flex items-center justify-between text-label font-semibold">
+        <span className="flex items-center gap-1.5">
+          <span className="text-[16px] leading-none">{emoji}</span> {r.total ? `${r.total} ${r.total === 1 ? 'reaction' : 'reactions'}` : 'No reactions yet'}
+        </span>
+        {slide === null && <span className="font-normal text-caption text-muted">whole session</span>}
+      </p>
+      {r.people.length > 0 && (
+        <ul className="mt-2 flex max-h-48 flex-col gap-1.5 overflow-hidden">
+          {r.people.slice(0, 8).map((p) => (
+            <li key={p.name} className="flex items-center gap-2 text-label">
+              <Avatar person={p.name} size="xs" />
+              <span className="min-w-0 flex-1 truncate">{p.name}</span>
+              {p.n > 1 && <span className="font-mono text-caption text-muted tabular-nums">×{p.n}</span>}
+            </li>
+          ))}
+          {r.people.length > 8 && <li className="text-caption text-muted">and {r.people.length - 8} more</li>}
+        </ul>
+      )}
+      {r.earlier > 0 && (
+        <p className="mt-2 border-t border-line pt-2 text-caption text-muted">
+          {r.earlier} earlier, before names were saved
+        </p>
+      )}
+      {!r.total && <p className="mt-1 text-caption text-muted">Be the first.</p>}
+    </div>
+  )
+}
+
+/** Reactions as a strip of equal cells, emoji over count: the same geometry as the present-mode dock. Hover one to see who. */
+function ReactionCells({ e, deck, slide }: { e: Engagement; deck: Deck; slide: string | null }) {
+  const [hover, setHover] = useState<number | null>(null)
+  const order = reactionOrder(e.reactions).slice(0, 6)
+  return (
+    <div className="relative" onPointerLeave={() => setHover(null)}>
+      <div className="grid grid-cols-6 divide-x divide-line overflow-hidden rounded-xl border border-line">
+        {order.map((emoji, i) => (
+          <button
+            key={emoji}
+            type="button"
+            onPointerEnter={() => setHover(i)}
+            onFocus={() => setHover(i)}
+            onBlur={() => setHover(null)}
+            aria-label={`${emoji}: ${e.reactions[emoji] ?? 0}. Show who reacted`}
+            className="flex cursor-default flex-col items-center gap-1 py-2 transition-[background-color] duration-150 [@media(hover:hover)]:hover:bg-wash-1"
+          >
             <span className="text-[18px] leading-none">{emoji}</span>
             <span className={cn('font-mono text-[11px] leading-none tabular-nums', e.reactions[emoji] ? 'text-ink' : 'text-muted/60')}>{e.reactions[emoji] ?? 0}</span>
-          </div>
+          </button>
         ))}
+      </div>
+      {hover !== null && (
+        <ReactorsCard
+          deck={deck}
+          slide={slide}
+          emoji={order[hover]}
+          className="absolute end-0 top-full z-20 mt-2"
+        />
+      )}
     </div>
   )
 }
@@ -53,7 +105,7 @@ export function SlideEngagement({ deck, slide }: { deck: Deck; slide: SlideRef }
       ) : (
         <div className="flex flex-col gap-3">
           <Totals e={e} />
-          <ReactionCells e={e} />
+          <ReactionCells e={e} deck={deck} slide={slideKey(slide)} />
           {e.kudos.length > 0 && (
             <p className="text-label text-muted">
               <span className="font-medium text-ink">{[...new Set(e.kudos.map((m) => m.from.split(' ')[0]))].join(', ')}</span> appreciated{' '}
@@ -104,7 +156,7 @@ export function SessionEngagement({ deck, slides, onPick }: { deck: Deck; slides
       <h3 className="mb-3 font-sans text-label font-semibold uppercase tracking-wide text-muted">Engagement · whole session</h3>
       <div className="flex flex-col gap-3">
         <Totals e={total} />
-        <ReactionCells e={total} />
+        <ReactionCells e={total} deck={deck} slide={null} />
         <div className="overflow-hidden rounded-xl border border-line">
           <div className="grid grid-cols-[1fr_44px_44px_44px] border-b border-line bg-wash-1 px-3 py-1.5 text-caption text-muted">
             <span>Slide</span>

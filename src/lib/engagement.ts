@@ -32,3 +32,26 @@ export const projectKudos = (deck: Deck, id: string) => (deck.chat ?? []).filter
 
 /** The fixed reaction set first, then anything else that was sent, so cells never reorder. */
 export const reactionOrder = (r: Record<string, number>) => [...REACTIONS, ...Object.keys(r).filter((e) => !(REACTIONS as readonly string[]).includes(e))]
+
+export interface Reactors {
+  /** people, most reactions first */
+  people: { name: string; n: number }[]
+  /** reactions from before names were saved */
+  earlier: number
+  total: number
+}
+
+/** Who sent `emoji`, on one slide or (with `slide` null) across the whole deck. */
+export function reactors(deck: Deck, slide: string | null, emoji: string): Reactors {
+  const keys = slide ? [slide] : Object.keys(deck.reactions ?? {})
+  const names: Record<string, number> = {}
+  let total = 0
+  for (const k of keys) {
+    total += deck.reactions?.[k]?.[emoji] ?? 0
+    for (const [name, n] of Object.entries(deck.reactedBy?.[k]?.[emoji] ?? {})) names[name] = (names[name] ?? 0) + n
+  }
+  const people = Object.entries(names)
+    .map(([name, n]) => ({ name, n }))
+    .sort((a, b) => b.n - a.n || a.name.localeCompare(b.name))
+  return { people, earlier: Math.max(0, total - people.reduce((a, p) => a + p.n, 0)), total }
+}

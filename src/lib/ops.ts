@@ -52,7 +52,14 @@ export function apply(deck: Deck, op: Op): Deck {
     case 'react': {
       const all = deck.reactions ?? {}
       const here = all[op.slide] ?? {}
-      return { ...deck, reactions: { ...all, [op.slide]: { ...here, [op.emoji]: (here[op.emoji] ?? 0) + 1 } } }
+      const by = deck.reactedBy ?? {}
+      const bySlide = by[op.slide] ?? {}
+      const byEmoji = bySlide[op.emoji] ?? {}
+      return {
+        ...deck,
+        reactions: { ...all, [op.slide]: { ...here, [op.emoji]: (here[op.emoji] ?? 0) + 1 } },
+        reactedBy: { ...by, [op.slide]: { ...bySlide, [op.emoji]: { ...byEmoji, [op.from]: (byEmoji[op.from] ?? 0) + 1 } } },
+      }
     }
   }
 }

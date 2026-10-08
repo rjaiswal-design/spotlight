@@ -72,3 +72,10 @@ span.sp-edit { display: inline-block; }
   .sp-fly-sway { animation: none; }
   .sp-fly-pop { animation: sp-fade 200ms ease-out both; }
 }
+
+/* hover cards (who reacted): a quick fade and lift, no delay once one is open */
+.sp-tip { transition: opacity 150ms var(--ease-out), transform 150ms var(--ease-out); }
+@starting-style { .sp-tip { opacity: 0; transform: translateY(4px) scale(0.97); } }
+@media (prefers-reduced-motion: reduce) {
+  @starting-style { .sp-tip { transform: none; } }
+}

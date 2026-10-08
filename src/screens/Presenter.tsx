@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Avatar, Button, CountBadge, Kbd, cn } from 'lightweight-ui'
 import { CaretLeft, CaretRight, ChatCircleText, CornersIn, HandsClapping, SquaresFour } from 'lightweight-ui/icons'
 import { ChatPanel, StickerTile } from '../components/Chat'
+import { ReactorsCard } from '../components/Engagement'
 import { Scaled, SlideView, slideKey, slidesOf } from '../components/Slides'
 import { isBoard, type Deck } from '../lib/deck'
 import { projectKudos } from '../lib/engagement'
@@ -27,6 +28,13 @@ export function Presenter({ room, start, watch, onExit }: { room: DeckRoom & { d
   const [seen, setSeen] = useState((deck.chat ?? []).length)
   const [following, setFollowing] = useState(!!watch)
   const [flyers, setFlyers] = useState<Flyer[]>([])
+  const [hoverEmoji, setHoverEmoji] = useState<{ emoji: string; x: number } | null>(null)
+  const dockRef = useRef<HTMLDivElement>(null)
+  const showReactors = (emoji: string, cell: HTMLElement) => {
+    const dock = dockRef.current?.getBoundingClientRect()
+    const r = cell.getBoundingClientRect()
+    if (dock) setHoverEmoji({ emoji, x: r.left - dock.left + r.width / 2 })
+  }
   const root = useRef<HTMLDivElement>(null)
   const wentFull = useRef(false)
 
@@ -250,7 +258,11 @@ export function Presenter({ room, start, watch, onExit }: { room: DeckRoom & { d
         {!grid && (
           <div className="sp-chrome pointer-events-none absolute inset-x-0 bottom-0 flex justify-center pb-4 transition-[opacity] duration-300">
             {/* one fixed dock: same cells, same width, on every slide */}
-            <div className="pointer-events-auto flex h-14 divide-x divide-line overflow-hidden rounded-2xl border border-line bg-card/95 shadow-toast backdrop-blur">
+            <div ref={dockRef} className="pointer-events-auto relative" onPointerLeave={() => setHoverEmoji(null)}>
+            {hoverEmoji && (
+              <ReactorsCard deck={deck} slide={key} emoji={hoverEmoji.emoji} className="absolute bottom-full mb-2 -translate-x-1/2" style={{ left: hoverEmoji.x }} />
+            )}
+            <div className="flex h-14 divide-x divide-line overflow-hidden rounded-2xl border border-line bg-card/95 shadow-toast backdrop-blur">
               <div className="flex divide-x divide-line">
                 <DockButton label="Previous" onClick={() => go(i - 1)} disabled={i === 0}>
                   <CaretLeft size={16} />
@@ -269,6 +281,9 @@ export function Presenter({ room, start, watch, onExit }: { room: DeckRoom & { d
                     key={emoji}
                     type="button"
                     onClick={() => room.react(key, emoji)}
+                    onPointerEnter={(e) => showReactors(emoji, e.currentTarget)}
+                    onFocus={(e) => showReactors(emoji, e.currentTarget)}
+                    onBlur={() => setHoverEmoji(null)}
                     aria-label={`React ${emoji}, ${counts[emoji] ?? 0} on this slide`}
                     className="group flex w-12 flex-col items-center justify-center gap-0.5 transition-[background-color] duration-150 [@media(hover:hover)]:hover:bg-wash-2"
                   >
@@ -312,6 +327,7 @@ export function Presenter({ room, start, watch, onExit }: { room: DeckRoom & { d
                   <CornersIn size={17} />
                 </DockButton>
               </div>
+            </div>
             </div>
           </div>
         )}

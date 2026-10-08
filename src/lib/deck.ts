@@ -90,6 +90,8 @@ export interface Deck {
   chat?: ChatMsg[]
   /** reaction counts, by slideKey then emoji */
   reactions?: Record<string, Record<string, number>>
+  /** who reacted: slideKey, then emoji, then name, then how many times */
+  reactedBy?: Record<string, Record<string, Record<string, number>>>
 }
 
 export interface Library {
